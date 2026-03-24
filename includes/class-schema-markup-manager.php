@@ -21,10 +21,32 @@ class Schema_Markup_Manager {
     }
 
     private function __construct() {
+        if ( defined( 'SCHEMA_MARKUP_MANAGER_RUNTIME_LOCK' ) ) {
+            return;
+        }
+        define( 'SCHEMA_MARKUP_MANAGER_RUNTIME_LOCK', 'plugin' );
+
         add_action( 'admin_menu', [ $this, 'add_admin_page' ] );
         add_action( 'admin_menu', [ $this, 'remove_duplicate_menu' ], 999 );
+        add_action( 'current_screen', [ $this, 'ensure_single_admin_page_renderer' ], 1 );
         add_action( 'admin_init', [ $this, 'register_settings' ] );
         add_action( 'init', [ $this, 'disable_plugins_markup' ], 1 );
+    }
+
+    public function ensure_single_admin_page_renderer( $screen ) {
+        if ( ! is_object( $screen ) || empty( $screen->id ) ) {
+            return;
+        }
+
+        $hook_name = 'tools_page_' . $this->page_slug;
+        if ( $screen->id !== $hook_name ) {
+            return;
+        }
+
+        // Some themes/plugins can register the same page slug and callback hook twice.
+        // Keep only one renderer for this page hook to prevent duplicated UI output.
+        remove_all_actions( $hook_name );
+        add_action( $hook_name, [ $this, 'render_admin_page' ] );
     }
 
     public function remove_duplicate_menu() {
@@ -49,7 +71,37 @@ class Schema_Markup_Manager {
             add_filter( 'wpseo_json_ld_output', '__return_false', 999 );
             add_filter( 'rank_math/json_ld', '__return_false', 999 );
             add_filter( 'wpseo_schema_graph_pieces', '__return_empty_array', 999 );
+            return;
         }
+
+        if ( get_option( 'schema_markup_disable_yoast_except_breadcrumbs', false ) ) {
+            add_filter( 'wpseo_schema_graph', [ $this, 'filter_yoast_graph_keep_breadcrumbs' ], 999, 2 );
+        }
+    }
+
+    public function filter_yoast_graph_keep_breadcrumbs( $graph ) {
+        if ( ! is_array( $graph ) ) {
+            return [];
+        }
+
+        $is_breadcrumb_item = static function ( $item ) {
+            if ( ! is_array( $item ) || empty( $item['@type'] ) ) {
+                return false;
+            }
+
+            $type = $item['@type'];
+            if ( is_string( $type ) ) {
+                return $type === 'BreadcrumbList';
+            }
+
+            if ( is_array( $type ) ) {
+                return in_array( 'BreadcrumbList', $type, true );
+            }
+
+            return false;
+        };
+
+        return array_values( array_filter( $graph, $is_breadcrumb_item ) );
     }
 
     public function add_admin_page() {
@@ -75,6 +127,11 @@ class Schema_Markup_Manager {
         ] );
 
         register_setting( 'schema_markup_settings_group', 'schema_markup_disable_plugins', [
+            'type'    => 'boolean',
+            'default' => false,
+        ] );
+
+        register_setting( 'schema_markup_settings_group', 'schema_markup_disable_yoast_except_breadcrumbs', [
             'type'    => 'boolean',
             'default' => false,
         ] );
@@ -163,8 +220,10 @@ class Schema_Markup_Manager {
 
             $disable_old     = isset( $_POST['schema_markup_disable_old'] ) ? 1 : 0;
             $disable_plugins = isset( $_POST['schema_markup_disable_plugins'] ) ? 1 : 0;
+            $disable_yoast_except_breadcrumbs = isset( $_POST['schema_markup_disable_yoast_except_breadcrumbs'] ) ? 1 : 0;
             update_option( 'schema_markup_disable_old', $disable_old );
             update_option( 'schema_markup_disable_plugins', $disable_plugins );
+            update_option( 'schema_markup_disable_yoast_except_breadcrumbs', $disable_yoast_except_breadcrumbs );
 
             $per_page_map = get_option( 'schema_markup_per_page', [] );
             if ( ! is_array( $per_page_map ) ) {
@@ -354,6 +413,24 @@ class Schema_Markup_Manager {
                                 </p>
                             </td>
                         </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="schema_markup_disable_yoast_except_breadcrumbs">Отключить Yoast, кроме breadcrumbs</label>
+                            </th>
+                            <td>
+                                <label>
+                                    <input type="checkbox"
+                                           id="schema_markup_disable_yoast_except_breadcrumbs"
+                                           name="schema_markup_disable_yoast_except_breadcrumbs"
+                                           value="1"
+                                        <?php checked( get_option( 'schema_markup_disable_yoast_except_breadcrumbs', false ), true ); ?>>
+                                    Отключить микроразметку Yoast SEO, но оставить BreadcrumbList (хлебные крошки)
+                                </label>
+                                <p class="description">
+                                    Полезно, когда нужна только навигационная цепочка от Yoast, а остальную его schema нужно вырубить.
+                                </p>
+                            </td>
+                        </tr>
                     </table>
 
                     <p class="submit">
@@ -432,6 +509,18 @@ class Schema_Markup_Manager {
                         <?php else : ?>
                             <strong>Внимание:</strong> У вас нет сохраненной микроразметки. Добавьте её в поле выше.
                         <?php endif; ?>
+                    </p>
+                </div>
+            <?php endif; ?>
+
+            <?php
+            $yoast_partially_disabled = get_option( 'schema_markup_disable_yoast_except_breadcrumbs', false );
+            if ( $yoast_partially_disabled && ! $plugins_disabled ) :
+                ?>
+                <div class="card" style="max-width: 1200px; margin-top: 20px; border-left: 4px solid #2271b1;">
+                    <h2>✅ Yoast schema ограничена</h2>
+                    <p class="description">
+                        Включен выборочный режим для Yoast SEO: его микроразметка отключена, но <code>BreadcrumbList</code> (хлебные крошки) остается активной.
                     </p>
                 </div>
             <?php endif; ?>
