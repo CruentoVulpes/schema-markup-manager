@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'SCHEMA_MARKUP_AS_PLUGIN', true );
-define( 'SCHEMA_MARKUP_MANAGER_VERSION', '1.0.1' );
+define( 'SCHEMA_MARKUP_MANAGER_VERSION', '1.0.4' );
 define( 'SCHEMA_MARKUP_MANAGER_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
 // Auto-updates via Plugin Update Checker (GitHub).
