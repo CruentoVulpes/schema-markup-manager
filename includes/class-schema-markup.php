@@ -109,7 +109,7 @@ class Schema_Markup {
             }
         }
 
-        if ( ! self::$already_output ) {
+        if ( ! self::$already_output && self::is_fallback_organization_enabled() ) {
             $rating = self::get_aggregate_rating_fallback();
             if ( $rating !== null ) {
                 $schema = [
@@ -126,6 +126,13 @@ class Schema_Markup {
                 echo '</script>' . "\n";
             }
         }
+    }
+
+    /**
+     * Резервный вывод Organization + aggregateRating (когда нет своей разметки / она отфильтрована).
+     */
+    private static function is_fallback_organization_enabled(): bool {
+        return (bool) get_option( 'schema_markup_enable_fallback_organization', true );
     }
 
     private static function get_aggregate_rating_fallback(): ?array {

@@ -140,6 +140,11 @@ class Schema_Markup_Manager {
             'type'    => 'array',
             'default' => [],
         ] );
+
+        register_setting( 'schema_markup_settings_group', 'schema_markup_enable_fallback_organization', [
+            'type'    => 'boolean',
+            'default' => true,
+        ] );
     }
 
     public function sanitize_schema_markup( $value ): string {
@@ -221,9 +226,11 @@ class Schema_Markup_Manager {
             $disable_old     = isset( $_POST['schema_markup_disable_old'] ) ? 1 : 0;
             $disable_plugins = isset( $_POST['schema_markup_disable_plugins'] ) ? 1 : 0;
             $disable_yoast_except_breadcrumbs = isset( $_POST['schema_markup_disable_yoast_except_breadcrumbs'] ) ? 1 : 0;
+            $enable_fallback_organization = isset( $_POST['schema_markup_enable_fallback_organization'] ) ? 1 : 0;
             update_option( 'schema_markup_disable_old', $disable_old );
             update_option( 'schema_markup_disable_plugins', $disable_plugins );
             update_option( 'schema_markup_disable_yoast_except_breadcrumbs', $disable_yoast_except_breadcrumbs );
+            update_option( 'schema_markup_enable_fallback_organization', $enable_fallback_organization );
 
             $per_page_map = get_option( 'schema_markup_per_page', [] );
             if ( ! is_array( $per_page_map ) ) {
@@ -428,6 +435,24 @@ class Schema_Markup_Manager {
                                 </label>
                                 <p class="description">
                                     Полезно, когда нужна только навигационная цепочка от Yoast, а остальную его schema нужно вырубить.
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="schema_markup_enable_fallback_organization">Резервная Organization + aggregateRating</label>
+                            </th>
+                            <td>
+                                <label>
+                                    <input type="checkbox"
+                                           id="schema_markup_enable_fallback_organization"
+                                           name="schema_markup_enable_fallback_organization"
+                                           value="1"
+                                        <?php checked( get_option( 'schema_markup_enable_fallback_organization', true ), true ); ?>>
+                                    Включить автоматический вывод минимальной <code>Organization</code> с рейтингом из отзывов, если другая разметка плагина на странице не сработала
+                                </label>
+                                <p class="description">
+                                    По умолчанию включено. Снимите галочку, чтобы не выводить этот запасной блок (например, только главная с полной разметкой, а на внутренних — без дублирующей Organization).
                                 </p>
                             </td>
                         </tr>

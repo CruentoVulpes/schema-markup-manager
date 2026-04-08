@@ -4,7 +4,7 @@
  * Plugin URI: https://example.com
  * Description: Schema.org JSON-LD markup manager, per-page markup, aggregateRating from reviews plugin.
  * Author: Vlad
- * Version: 1.0.3
+ * Version: 1.0.4
  * Text Domain: schema-markup-manager
  * License: GPL v2 or later
  */
